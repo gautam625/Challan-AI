@@ -1,0 +1,8 @@
+fpdf2
+numpy
+opencv-python-headless
+pandas
+Pillow
+pytesseract
+streamlit
+twilio
