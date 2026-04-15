@@ -8,6 +8,9 @@ import streamlit as st
 from PIL import Image
 from datetime import datetime
 
+pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+os.environ['TESSDATA_PREFIX'] = r"C:\Program Files\Tesseract-OCR\tessdata"
+
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -16,6 +19,91 @@ from whatsapp import send_msg
 from pdf import generate_pdf
 
 create_db()
+
+# ---------------- OCR FUNCTIONS (ADDED ONLY THIS PART) ----------------
+
+def preprocess_plate(plate):
+    gray = cv2.cvtColor(plate, cv2.COLOR_BGR2GRAY)
+    gray = cv2.resize(gray, None, fx=2.5, fy=2.5, interpolation=cv2.INTER_CUBIC)
+
+    kernel = np.array([[0,-1,0], [-1,5,-1], [0,-1,0]])
+    gray = cv2.filter2D(gray, -1, kernel)
+
+    gray = cv2.bilateralFilter(gray, 11, 17, 17)
+
+    thresh = cv2.adaptiveThreshold(
+        gray, 255,
+        cv2.ADAPTIVE_THRESH_MEAN_C,
+        cv2.THRESH_BINARY,
+        11, 2
+    )
+
+    return gray, thresh
+
+
+def fix_format(text):
+    text = re.sub('[^A-Z0-9]', '', text.upper())
+
+    if len(text) < 8:
+        return text
+
+    text = list(text)
+
+    for i in range(len(text)):
+        if i in [0,1,4,5]:
+            if text[i] == '0': text[i] = 'O'
+            if text[i] == '1': text[i] = 'I'
+            if text[i] == '8': text[i] = 'B'
+
+        if i in [2,3,6,7,8,9]:
+            if text[i] == 'O': text[i] = '0'
+            if text[i] == 'I': text[i] = '1'
+            if text[i] == 'B': text[i] = '8'
+            if text[i] == 'Z': text[i] = '2'
+
+    return ''.join(text)
+
+
+def extract_text(plate):
+    gray, thresh = preprocess_plate(plate)
+
+    configs = [
+        r'--oem 3 --psm 7 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+        r'--oem 3 --psm 8 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789',
+        r'--oem 3 --psm 6 -c tessedit_char_whitelist=ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'
+    ]
+
+    results = []
+
+    for config in configs:
+        t1 = pytesseract.image_to_string(gray, config=config)
+        t2 = pytesseract.image_to_string(thresh, config=config)
+        results.extend([t1, t2])
+
+    return results
+
+
+def clean_plate(text_list):
+    candidates = []
+
+    for text in text_list:
+        text = fix_format(text)
+        pattern = r'[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}'
+        match = re.search(pattern, text)
+
+        if match:
+            candidates.append(match.group())
+
+    if candidates:
+        return max(set(candidates), key=candidates.count)
+
+    best = ""
+    for t in text_list:
+        t = re.sub('[^A-Z0-9]', '', t.upper())
+        if len(t) > len(best):
+            best = t
+
+    return best if best else "UNKNOWN"
 
 # ---------------- CONFIG ----------------
 st.set_page_config(layout="wide")
@@ -57,6 +145,7 @@ elif st.session_state.page == "Issue Challan":
         image = Image.open(file)
         img = np.array(image)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
         cascade = cv2.CascadeClassifier("haarcascade_russian_plate_number.xml")
         plates = cascade.detectMultiScale(gray, 1.1, 4)
 
@@ -64,12 +153,17 @@ elif st.session_state.page == "Issue Challan":
             st.error("No plate found")
         else:
             x, y, w, h = plates[0]
+
             cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
             image_box = Image.fromarray(img)
-            plate = gray[y:y + h, x:x + w]
-            text = pytesseract.image_to_string(plate, config='--psm 7')
-            text = ''.join(filter(str.isalnum, text.upper()))
-            match = re.search(r'[A-Z]{2}[0-9]{2}[A-Z]{2}[0-9]{4}', text)
+
+            # --------- IMPROVED OCR USED HERE ----------
+            plate = img[y:y + h, x:x + w]
+
+            texts = extract_text(plate)
+            car_number = clean_plate(texts)
+
+            match = re.search(r'[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}', car_number)
 
             if not match:
                 st.error("Invalid plate. Upload clear image.")
@@ -95,16 +189,23 @@ elif st.session_state.page == "Issue Challan":
                     "Without License": 1000,
                     "Drunken Driving": 500
                 }
+
                 reason = st.selectbox("Reason", list(fine_map.keys()))
                 fine = fine_map[reason]
+
                 st.write(f"###### 💰 Fine: Rs. {fine}")
+
                 date = datetime.now().strftime("%d-%m-%Y")
                 time = datetime.now().strftime("%I:%M %p")
+
                 st.write("📅 **Date:**", date)
                 st.write("⏰  **Time:**", time)
+
                 pending_data = get_pending_challans(car_number)
                 total_pending = sum(row[0] for row in pending_data)
+
                 st.write(f"###### 📋 Pending Challans: Rs. {total_pending}")
+
                 grand_total = fine + total_pending
                 st.write(f"##### 🧾 Total Amount: Rs. {grand_total}")
 
@@ -138,15 +239,22 @@ elif st.session_state.page == "Issue Challan":
 
             with colB:
                 if owner:
-                    temp_path = "/tmp/temp_plate.png"
+                    temp_path = "temp_plate.png"
                     image_box.save(temp_path)
-                    pdf_bytes = generate_pdf(car_number, owner, reason, fine, total_pending, grand_total, date, time, temp_path)
+
+                    pdf_bytes = generate_pdf(
+                        car_number, owner, reason, fine,
+                        total_pending, grand_total,
+                        date, time, temp_path
+                    )
+
                     st.download_button(
                         label="📄 Download PDF",
                         data=pdf_bytes,
                         file_name=f"{car_number}_challan.pdf",
                         mime="application/pdf"
                     )
+
                     os.remove(temp_path)
 
 # ---------------- DATABASE ----------------
@@ -162,12 +270,15 @@ elif st.session_state.page == "Vehicle Database":
 # ---------------- REGISTER VEHICLE ----------------
 elif st.session_state.page == "Register Vehicle":
     st.title("➕ Register Vehicle")
+
     col1, col2 = st.columns(2)
+
     car_no = col1.text_input("🚗 Car Number")
     location = col2.text_input("📍 Location")
     name = col1.text_input("👤 Owner Name")
     mobile = col2.text_input("📱 Mobile")
     age = st.number_input("🎂 Age", 18, 100)
+
     if st.button("Register Vehicle"):
         insert_data(car_no.upper(), name, age, location, mobile)
         st.success("Vehicle Registered")
