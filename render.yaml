@@ -2,9 +2,11 @@ services:
   - type: web
     name: challan-ai
     env: python
+    plan: free
     buildCommand: |
-      apt-get update
+      echo "Installing Tesseract..."
+      apt-get update -y
       apt-get install -y tesseract-ocr tesseract-ocr-eng
-      which tesseract
+      tesseract --version
       pip install -r requirements.txt
     startCommand: streamlit run app.py --server.port $PORT --server.address 0.0.0.0
