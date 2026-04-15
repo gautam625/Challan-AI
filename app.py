@@ -9,10 +9,10 @@ from PIL import Image
 from datetime import datetime
 
 
-if os.name == "nt":
+if os.name == "nt":  # Windows
     pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
     os.environ['TESSDATA_PREFIX'] = r"C:\Program Files\Tesseract-OCR\tessdata"
-else:
+else:  # Render (Linux)
     pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 # Database
