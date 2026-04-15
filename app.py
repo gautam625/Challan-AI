@@ -7,13 +7,28 @@ import pandas as pd
 import streamlit as st
 from PIL import Image
 from datetime import datetime
+import shutil
 
-
+# ✅ Robustly find tesseract wherever it's installed
 if os.name == "nt":
     pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
 else:
-    pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
+    # Try common paths, then fall back to shutil.which
+    tesseract_paths = [
+        "/usr/bin/tesseract",
+        "/usr/local/bin/tesseract",
+        "/opt/homebrew/bin/tesseract",
+    ]
+    found = shutil.which("tesseract")
+    if found:
+        pytesseract.pytesseract.tesseract_cmd = found
+    else:
+        for path in tesseract_paths:
+            if os.path.isfile(path):
+                pytesseract.pytesseract.tesseract_cmd = path
+                break
 
+print("Tesseract path:", pytesseract.pytesseract.tesseract_cmd)
 print(os.system("tesseract --version"))
 
 # Database
