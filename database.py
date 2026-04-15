@@ -1,15 +1,12 @@
 import sqlite3
 import os
 
-# ✅ Use a writable path that works on both local and Render
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cars.db")
 
 
 def create_db():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-
-    # Cars table
     c.execute('''CREATE TABLE IF NOT EXISTS cars (
         car_number TEXT PRIMARY KEY,
         owner_name TEXT,
@@ -17,8 +14,6 @@ def create_db():
         location TEXT,
         mobile TEXT
     )''')
-
-    # Challan table
     c.execute('''CREATE TABLE IF NOT EXISTS challans (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         car_number TEXT,
@@ -27,7 +22,6 @@ def create_db():
         date TEXT,
         status TEXT
     )''')
-
     conn.commit()
     conn.close()
 
@@ -62,8 +56,8 @@ def get_all_vehical():
 def insert_challan(car_number, amount, reason, date, status="Pending"):
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
-    c.execute("""INSERT INTO challans (car_number, amount, reason, date, status)
-                 VALUES (?, ?, ?, ?, ?)""", (car_number, amount, reason, date, status))
+    c.execute("INSERT INTO challans (car_number, amount, reason, date, status) VALUES (?, ?, ?, ?, ?)",
+              (car_number, amount, reason, date, status))
     conn.commit()
     conn.close()
 
@@ -79,9 +73,8 @@ def get_all_challans():
 
 def get_pending_challans(car_number):
     conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""SELECT amount FROM challans
-                      WHERE car_number = ? AND status = 'Pending'""", (car_number,))
-    data = cursor.fetchall()
+    c = conn.cursor()
+    c.execute("SELECT amount FROM challans WHERE car_number=? AND status='Pending'", (car_number,))
+    data = c.fetchall()
     conn.close()
     return data
