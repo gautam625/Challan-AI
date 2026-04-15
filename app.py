@@ -15,6 +15,9 @@ if os.name == "nt":  # Windows
 else:  # Render (Linux)
     pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
+import os
+print(os.system("tesseract --version"))
+
 # Database
 from database import create_db, insert_data, get_owner, get_all_vehical, get_all_challans, insert_challan, get_pending_challans
 from whatsapp import send_msg
