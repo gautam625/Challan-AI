@@ -15,7 +15,6 @@ if os.name == "nt":  # Windows
 else:  # Render (Linux)
     pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
-import os
 print(os.system("tesseract --version"))
 
 # Database
