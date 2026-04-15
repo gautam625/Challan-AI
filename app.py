@@ -8,8 +8,12 @@ import streamlit as st
 from PIL import Image
 from datetime import datetime
 
-# ✅ No hardcoded Windows paths needed — Tesseract is installed via packages.txt on Render
-# (On Linux, tesseract is found automatically on PATH)
+
+if os.name == "nt":
+    pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
+    os.environ['TESSDATA_PREFIX'] = r"C:\Program Files\Tesseract-OCR\tessdata"
+else:
+    pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 # Database
 from database import create_db, insert_data, get_owner, get_all_vehical, get_all_challans, insert_challan, get_pending_challans
