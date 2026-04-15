@@ -1,8 +1,9 @@
-fpdf2
-numpy
-opencv-python-headless
-pandas
-Pillow
-pytesseract
 streamlit
+opencv-python-headless
+pytesseract
+Pillow
+numpy
+pandas
 twilio
+python-dotenv
+fpdf2
