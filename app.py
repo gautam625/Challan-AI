@@ -8,11 +8,9 @@ import streamlit as st
 from PIL import Image
 from datetime import datetime
 
-
-if os.name == "nt":  # Windows
+if os.name == "nt":
     pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-    os.environ['TESSDATA_PREFIX'] = r"C:\Program Files\Tesseract-OCR\tessdata"
-else:  # Render (Linux)
+else:
     pytesseract.pytesseract.tesseract_cmd = "/usr/bin/tesseract"
 
 print(os.system("tesseract --version"))
