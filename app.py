@@ -21,6 +21,10 @@ create_db()
 st.session_state.setdefault("page", "Dashboard")
 st.session_state.setdefault("action_done", None)
 st.session_state.setdefault("last_plate", None)
+st.session_state.setdefault("last_file", None)
+
+# 🔥 NEW (for clearing uploader)
+st.session_state.setdefault("uploader_key", 0)
 
 # ---------------- OCR FUNCTIONS ----------------
 def preprocess_plate(plate):
@@ -86,10 +90,24 @@ st.set_page_config(layout="wide")
 
 # ---------------- SIDEBAR ----------------
 st.sidebar.markdown("# 🚗 Challan-AI")
+
 menu = [("Dashboard", "🏠"), ("Issue Challan", "📸"), ("Vehicle Database", "🚘"), ("Register Vehicle", "➕")]
+
 for label, icon in menu:
     if st.sidebar.button(f"{icon} {label}", width="stretch"):
-        st.session_state.page = label
+
+        # 🔥 ONLY CHANGE: clear uploader when clicking Issue Challan
+        if label == "Issue Challan":
+            st.session_state.uploader_key += 1
+            st.session_state.action_done = None
+            st.session_state.last_plate = None
+            st.session_state.last_file = None
+
+        if st.session_state.page == label:
+            st.rerun()
+        else:
+            st.session_state.page = label
+            st.rerun()
 
 # ---------------- DASHBOARD ----------------
 if st.session_state.page == "Dashboard":
@@ -105,36 +123,45 @@ if st.session_state.page == "Dashboard":
         search = st.text_input("🔍 Search by Car Number")
         if search:
             df = df[df["Car Number"].str.contains(search, case=False)]
-        st.dataframe(df, width="stretch", height=400)
+        st.dataframe(df,  width="stretch", height=400)
     else:
         st.info("No challans issued yet.")
 
 # ---------------- ISSUE CHALLAN ----------------
 elif st.session_state.page == "Issue Challan":
     st.title("📸 Issue Challan")
-    file = st.file_uploader("Upload image")
+
+    # 🔥 ONLY CHANGE: use key
+    file = st.file_uploader("Upload image", key=st.session_state.uploader_key)
 
     if file:
         image = Image.open(file)
         img = np.array(image)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
         cascade = cv2.CascadeClassifier("haarcascade_russian_plate_number.xml")
         plates = cascade.detectMultiScale(gray,1.1,4)
+
         if len(plates)==0:
             st.error("No plate found")
         else:
             x,y,w,h = plates[0]
+
             cv2.rectangle(img,(x,y),(x+w,y+h),(255,0,0),2)
             image_box = Image.fromarray(img)
+
             plate = img[y:y+h,x:x+w]
             texts = extract_text(plate)
             car_number = clean_plate(texts)
+
             match = re.search(r'[A-Z]{2}[0-9]{2}[A-Z]{1,3}[0-9]{4}', car_number)
             if not match:
-                st.error("Invalid plate")
+                st.error("Invalid Number plate : Upload different images")
                 st.stop()
+
             car_number = match.group(0)
             owner = get_owner(car_number)
+
             if st.session_state.last_plate != car_number:
                 st.session_state.action_done = None
                 st.session_state.last_plate = car_number
@@ -165,7 +192,6 @@ elif st.session_state.page == "Issue Challan":
                 st.write(f"Pending: {pending}")
                 st.write(f"##### Total Amount : {total}")
 
-            # -------- BUTTON LOGIC FINAL --------
             if owner:
                 if st.session_state.action_done is None:
                     col1, col2 = st.columns(2)
@@ -186,7 +212,6 @@ elif st.session_state.page == "Issue Challan":
                         st.success("✅ Challan paid successfully")
 
             st.markdown("---")
-            
             colA,colB = st.columns(2)
 
             with colA:
@@ -197,7 +222,7 @@ elif st.session_state.page == "Issue Challan":
                             st.error("❌ Mobile number incorrect")
                         else:
                             try:
-                                sid = send_msg(owner, car_number, reason,fine,pending,total,date, time)
+                                send_msg(owner, car_number, reason,fine,pending,total,date, time)
                                 st.success("✅ WhatsApp Sent Successfully")
                             except Exception:
                                 st.error("❌ Failed to send WhatsApp. Check number or network.")
