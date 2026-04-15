@@ -1,0 +1,15 @@
+version: "3.9"
+
+services:
+  challan-ai:
+    build: .
+    ports:
+      - "8501:8501"
+    env_file:
+      - .env
+    volumes:
+      - challan_data:/data   # persistent SQLite DB storage
+    restart: unless-stopped
+
+volumes:
+  challan_data:

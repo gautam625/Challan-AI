@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+*.db
+.env
+*.egg-info/
+.git/
+.gitignore
+render.yaml
+challan.db
