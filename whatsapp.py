@@ -1,16 +1,10 @@
 from twilio.rest import Client
 import os
 
-ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-AUTH_TOKEN  = os.getenv("TWILIO_AUTH_TOKEN")
-FROM_NUMBER = os.getenv("TWILIO_FROM_NUMBER")
-
 def send_msg(owner, car_number, reason, fine, total_pending, grand_total, date, time):
     phone = owner[4]
-
     if not phone.startswith("+"):
         phone = "+91" + phone
-    
 
     msg = (
         f"🚨 *Traffic Challan Notice*\n\n"
@@ -28,7 +22,11 @@ def send_msg(owner, car_number, reason, fine, total_pending, grand_total, date, 
         f"⏰ Time : {time}\n\n"
         f"Please pay the fine promptly to avoid further penalties."
     )
-    
-    client = Client(ACCOUNT_SID, AUTH_TOKEN)
-    message = client.messages.create(from_=FROM_NUMBER,to=f"whatsapp:{phone}",body=msg)
+
+    client = Client(os.getenv("TWILIO_ACCOUNT_SID"), os.getenv("TWILIO_AUTH_TOKEN"))
+    message = client.messages.create(
+        from_=os.getenv("TWILIO_FROM_NUMBER"),
+        to=f"whatsapp:{phone}",
+        body=msg
+    )
     return message.sid
