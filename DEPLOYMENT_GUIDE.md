@@ -17,48 +17,9 @@
 | `docker-compose.yml` | Easy Docker orchestration |
 | `.dockerignore` | Keeps image clean |
 
-### ❌ Files you can DELETE (no longer needed):
-- `render.yaml` — replaced by Docker
-- `challan.db` — duplicate DB file
-- `packages.txt` — only needed for Render, Docker handles this in Dockerfile
-
 ---
 
-## 🖥️ PART 1 — Run Locally (without Docker)
-
-### Prerequisites
-- Python 3.10+
-- Tesseract OCR installed:
-  - **Windows:** https://github.com/UB-Mannheim/tesseract/wiki
-  - **Ubuntu/Mac:** `sudo apt install tesseract-ocr` / `brew install tesseract`
-
-### Steps
-
-```bash
-# 1. Clone or copy your project folder
-cd challan-ai
-
-# 2. Create virtual environment
-python -m venv venv
-source venv/bin/activate        # Mac/Linux
-venv\Scripts\activate           # Windows
-
-# 3. Install dependencies
-pip install -r requirements.txt
-
-# 4. Create your .env file (copy from template)
-cp .env.example .env
-# Then fill in your Twilio credentials
-
-# 5. Run the app
-streamlit run app.py
-```
-
-App opens at: http://localhost:8501
-
----
-
-## 🐳 PART 2 — Docker Deployment
+## 🐳 — Docker Deployment
 
 ### Prerequisites
 - Docker Desktop installed: https://www.docker.com/products/docker-desktop/
