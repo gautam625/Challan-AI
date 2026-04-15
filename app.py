@@ -1,41 +1,25 @@
 import os
 import re
 import cv2
-import pytesseract
+import easyocr
 import numpy as np
 import pandas as pd
 import streamlit as st
 from PIL import Image
 from datetime import datetime
-import shutil
-
-# ✅ Robustly find tesseract wherever it's installed
-if os.name == "nt":
-    pytesseract.pytesseract.tesseract_cmd = r"C:\Program Files\Tesseract-OCR\tesseract.exe"
-else:
-    # Try common paths, then fall back to shutil.which
-    tesseract_paths = [
-        "/usr/bin/tesseract",
-        "/usr/local/bin/tesseract",
-        "/opt/homebrew/bin/tesseract",
-    ]
-    found = shutil.which("tesseract")
-    if found:
-        pytesseract.pytesseract.tesseract_cmd = found
-    else:
-        for path in tesseract_paths:
-            if os.path.isfile(path):
-                pytesseract.pytesseract.tesseract_cmd = path
-                break
-
-print("Tesseract path:", pytesseract.pytesseract.tesseract_cmd)
-print(os.system("tesseract --version"))
 
 # Database
 from database import create_db, insert_data, get_owner, get_all_vehical, get_all_challans, insert_challan, get_pending_challans
 from whatsapp import send_msg
 from pdf import generate_pdf
 create_db()
+
+# ✅ Initialize EasyOCR reader once (cached) — no Tesseract needed
+@st.cache_resource
+def load_reader():
+    return easyocr.Reader(['en'], gpu=False)
+
+reader = load_reader()
 
 # ---------------- CONFIG ----------------
 st.set_page_config(layout="wide")
@@ -64,12 +48,10 @@ if st.session_state.page == "Dashboard":
 
         st.markdown("---")
 
-        # 🔍 Search
         search = st.text_input("🔍 Search by Car Number")
         if search:
             df = df[df["Car Number"].str.contains(search, case=False)]
 
-        # 📋 Table
         st.dataframe(df, width="stretch", height=400)
 
     else:
@@ -81,7 +63,6 @@ elif st.session_state.page == "Issue Challan":
     file = st.file_uploader("Upload image to detect vehicle and generate challan")
 
     if file:
-
         image = Image.open(file)
         img = np.array(image)
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
@@ -93,16 +74,16 @@ elif st.session_state.page == "Issue Challan":
         else:
             x, y, w, h = plates[0]
 
-            # 🔥 Draw rectangle
             cv2.rectangle(img, (x, y), (x + w, y + h), (255, 0, 0), 2)
             image_box = Image.fromarray(img)
 
             # Crop plate
             plate = gray[y:y + h, x:x + w]
 
-            # OCR
-            text = pytesseract.image_to_string(plate, config='--psm 7')
-            text = ''.join(filter(str.isalnum, text.upper()))
+            # ✅ EasyOCR — pure Python, no system dependencies
+            results = reader.readtext(plate, detail=0)
+            text = ''.join(results).upper()
+            text = ''.join(filter(str.isalnum, text))
 
             match = re.search(r'[A-Z]{2}[0-9]{2}[A-Z]{2}[0-9]{4}', text)
 
@@ -115,14 +96,12 @@ elif st.session_state.page == "Issue Challan":
 
             col1, col2 = st.columns(2)
 
-            # LEFT SIDE
             with col1:
                 st.image(image_box, width=250)
                 st.markdown(f"## 🚗 {car_number}")
                 if owner:
                     st.markdown(f"""- **Name:** {owner[1]}\n- **Age:** {owner[2]}\n- **Place:** {owner[3]}\n- **Mobile:** {owner[4]}""")
 
-            # RIGHT SIDE
             with col2:
                 st.markdown("## 🚨 Challan Details")
 
@@ -152,14 +131,12 @@ elif st.session_state.page == "Issue Challan":
 
             col1, col2 = st.columns(2)
 
-            # LEFT BUTTON (Issue Challan)
             with col1:
                 if st.button("🚨 Issue Challan"):
                     insert_challan(car_number=car_number, amount=fine, reason=reason,
                                    date=str(datetime.now().date()), status="Pending")
                     st.success("✅ Challan Issued Successfully")
 
-            # RIGHT BUTTON (Pay Challan)
             with col2:
                 if st.button("💳 Pay Challan"):
                     insert_challan(car_number=car_number, amount=fine, reason=reason,
@@ -170,7 +147,6 @@ elif st.session_state.page == "Issue Challan":
 
             colA, colB = st.columns(2)
 
-            # ✅ WhatsApp via Twilio
             with colA:
                 if owner:
                     if st.button("📞 Send WhatsApp"):
@@ -182,7 +158,6 @@ elif st.session_state.page == "Issue Challan":
                 else:
                     st.warning("⚠️ Owner not registered — cannot send WhatsApp.")
 
-            # PDF Download
             with colB:
                 if owner:
                     temp_path = "temp.png"
