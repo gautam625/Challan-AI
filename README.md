@@ -6,6 +6,10 @@ Challan-AI is an intelligent web application that automatically detects vehicle 
 
 ---
 
+🌐 Live Demo: https://challan-ai-1-yuvn.onrender.com
+
+---
+
 ## 📸 Screenshots
 <img width="3056" height="1558" alt="image" src="https://github.com/user-attachments/assets/0462583e-e48b-4968-be31-be02ecb37c9f" />
 
