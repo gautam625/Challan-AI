@@ -22,6 +22,7 @@ COPY app.py .
 COPY database.py .
 COPY whatsapp.py .
 COPY pdf.py .
+COPY ocr.py .
 COPY haarcascade_russian_plate_number.xml .
 
 # Create a volume mount point for persistent DB storage
