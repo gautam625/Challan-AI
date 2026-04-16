@@ -13,7 +13,7 @@ if not FROM_NUMBER:
     raise Exception("❌ TWILIO_FROM_NUMBER not set in environment")
 
 
-def send_msg(owner, car_number, reason, fine, total_pending, grand_total, date, time):
+def send_whatsapp(owner, car_number, reason, fine, total_pending, grand_total, date, time):
     phone = owner[4]
     if not phone.startswith("+"):
         phone = "+91" + phone
